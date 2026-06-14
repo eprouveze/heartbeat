@@ -1,0 +1,117 @@
+# Off-machine liveness watchdog for the heartbeat loop.
+#
+# WHY: the heartbeat runs on one machine. If that machine sleeps, loses network,
+# or the loop silently dies, nothing on the machine itself can tell you — the
+# thing that would alert you is the thing that's down. This watchdog runs on
+# GitHub's infrastructure and reads the *pushed* tick log, so it detects a
+# stalled loop from the outside.
+#
+# SETUP:
+#   1. Make the loop mirror each tick line into a TRACKED path in this repo, in
+#      addition to ~/.heartbeat/ticks.jsonl (which is machine-local and never
+#      committed). E.g. each tick appends the same JSON line to state/ticks.jsonl,
+#      then commits + pushes it. Point TICKS_PATH below at that tracked path.
+#   2. The loop must `git push` every tick (see SKILL.md step 4).
+#   3. Tune STALE_MINUTES to a few multiples of your empty-tick pace.
+#   4. (Optional) Add a notifier step where indicated (Slack webhook, issue, email).
+#
+# This template only opens/refreshes a GitHub issue on staleness — zero secrets
+# required. Wire a real notifier for anything you need to see on your phone.
+
+name: heartbeat-liveness
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 min
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  TICKS_PATH: state/ticks.jsonl   # <-- where the loop pushes its tick log
+  STALE_MINUTES: "120"            # <-- alert if no tick within this window
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate last tick freshness
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$TICKS_PATH" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no tick log at $TICKS_PATH" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last="$(tail -n 1 "$TICKS_PATH")"
+          ts="$(echo "$last" | sed -n 's/.*"ts"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+          if [ -z "$ts" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "reason=could not parse ts from last tick line" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Parse the ISO8601 timestamp portably. GNU date (on ubuntu-latest) handles
+          # RFC3339 directly; python3 is the cross-platform fallback. 0 = unparseable.
+          last_epoch="$(date -u -d "$ts" +%s 2>/dev/null \
+            || python3 -c "import sys,datetime; print(int(datetime.datetime.fromisoformat(sys.argv[1]).timestamp()))" "$ts" 2>/dev/null \
+            || echo 0)"
+          now_epoch="$(date -u +%s)"
+          age_min=$(( (now_epoch - last_epoch) / 60 ))
+          echo "Last tick: $ts (${age_min} min ago)"
+          if [ "$last_epoch" -eq 0 ] || [ "$age_min" -gt "${STALE_MINUTES}" ]; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "reason=last tick ${age_min} min ago (threshold ${STALE_MINUTES})" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open/refresh staleness issue
+        if: steps.check.outputs.stale == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reason = ${{ toJSON(steps.check.outputs.reason) }};
+            const title = "⚠️ heartbeat liveness: loop appears stalled";
+            const body = `The off-machine watchdog could not confirm a recent heartbeat tick.\n\n**Reason:** ${reason}\n\nChecked at ${new Date().toISOString()}. Check the heartbeat machine.`;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: "open", labels: "heartbeat-liveness",
+            });
+            if (issues.length) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issues[0].number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ["heartbeat-liveness"],
+              });
+            }
+            // --- Wire a real notifier here (Slack webhook / email) for phone alerts. ---
+
+      - name: Close stale issue on recovery
+        if: steps.check.outputs.stale == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: "open", labels: "heartbeat-liveness",
+            });
+            for (const i of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: i.number, body: "✅ heartbeat recovered — a fresh tick was pushed. Closing.",
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: i.number, state: "closed",
+              });
+            }

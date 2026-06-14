@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+  Heartbeat board — a minimal shared kanban between the owner and the heartbeat agent.
+  Single source of truth = the BOARD JSON below. The agent edits the JSON block;
+  open locally in any browser. Copy this template to ~/.heartbeat/board.html
+  on first ignite.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heartbeat Board</title>
+<style>
+  :root { --bg:#0e0e12; --card:#1a1a22; --ink:#e8e6e0; --dim:#8a8896; --amber:#e8a33d; --green:#4fc47f; --blue:#5aa7e8; --red:#e86a5a; --line:#2a2a34; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,"Segoe UI",sans-serif; padding:28px; }
+  header { display:flex; align-items:baseline; gap:16px; margin-bottom:6px; }
+  h1 { font-size:22px; letter-spacing:.02em; }
+  .meta { color:var(--dim); font-size:13px; }
+  .legend { color:var(--dim); font-size:12.5px; margin-bottom:18px; }
+  .board { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; align-items:start; }
+  .col { background:#14141a; border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .col h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin-bottom:10px; display:flex; justify-content:space-between; }
+  .col h2 .count { color:var(--ink); }
+  .card { background:var(--card); border:1px solid var(--line); border-left:3px solid var(--dim); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+  .card.O { border-left-color:var(--blue); } .card.A { border-left-color:var(--amber); }
+  .card .t { font-weight:600; font-size:14px; margin-bottom:4px; }
+  .card .n { color:var(--dim); font-size:12.5px; }
+  .card .f { display:flex; gap:8px; margin-top:7px; font-size:11.5px; }
+  .badge { padding:1px 7px; border-radius:9px; background:#23232d; color:var(--dim); }
+  .badge.owner-O { color:var(--blue); } .badge.owner-A { color:var(--amber); }
+  .badge.due { color:var(--red); } .badge.ledger { color:var(--dim); font-family:ui-monospace,monospace; }
+  @media (max-width:1200px) { .board { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<header><h1>Heartbeat Board</h1><span class="meta" id="updated"></span></header>
+<div class="legend">Owners: <b style="color:var(--blue)">O</b> human owner · <b style="color:var(--amber)">A</b> agent (heartbeat). Cards with a 🎯 carry an outcome-ledger prediction.</div>
+<div class="board" id="board"></div>
+
+<script id="data" type="application/json">
+{
+  "updated": "",
+  "columns": ["Now (today)", "Next (this week)", "Waiting on owner", "On horizon", "Done (this week)"],
+  "cards": []
+}
+</script>
+<script>
+  // All card content is rendered via textContent (no innerHTML) so board JSON
+  // can never inject markup. Do NOT "simplify" this back to innerHTML — the JSON
+  // block is agent-edited and must stay injection-proof.
+  const data = JSON.parse(document.getElementById("data").textContent);
+  document.getElementById("updated").textContent = "updated " + (data.updated || "never");
+  const board = document.getElementById("board");
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  data.columns.forEach((name, i) => {
+    const col = el("div", "col");
+    const cards = data.cards.filter(c => c.col === i);
+    const h2 = el("h2", null, name + " ");
+    h2.appendChild(el("span", "count", String(cards.length)));
+    col.appendChild(h2);
+    cards.forEach(c => {
+      const card = el("div", "card " + (c.owner || ""));
+      card.appendChild(el("div", "t", (c.ledger ? "🎯 " : "") + c.title));
+      if (c.note) card.appendChild(el("div", "n", c.note));
+      const f = el("div", "f");
+      f.appendChild(el("span", "badge owner-" + c.owner, c.owner));
+      if (c.due) f.appendChild(el("span", "badge due", c.due));
+      if (c.ledger) f.appendChild(el("span", "badge ledger", c.ledger));
+      card.appendChild(f);
+      col.appendChild(card);
+    });
+    board.appendChild(col);
+  });
+</script>
+</body>
+</html>
