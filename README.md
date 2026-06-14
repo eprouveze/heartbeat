@@ -29,9 +29,9 @@ The skill is named `heartbeat-kit` so it never collides with a project-specific
 ## Install
 
 ```bash
-git clone https://github.com/<you>/heartbeat-kit.git ~/heartbeat-kit
+git clone https://github.com/<you>/heartbeat.git ~/heartbeat
 mkdir -p ~/.claude/skills/heartbeat-kit
-cp ~/heartbeat-kit/skills/heartbeat-kit/SKILL.md ~/.claude/skills/heartbeat-kit/
+cp ~/heartbeat/skills/heartbeat-kit/SKILL.md ~/.claude/skills/heartbeat-kit/
 ```
 
 (The launcher pre-flight-checks that the skill is deployed and refuses to start otherwise.)
@@ -39,7 +39,7 @@ cp ~/heartbeat-kit/skills/heartbeat-kit/SKILL.md ~/.claude/skills/heartbeat-kit/
 ## Ignite
 
 ```bash
-~/heartbeat-kit/bin/heartbeat-launch.sh [working-directory]
+~/heartbeat/bin/heartbeat-launch.sh [working-directory]
 ```
 
 `working-directory` defaults to `$HOME`. Set it to a **git repo the loop can push from** if

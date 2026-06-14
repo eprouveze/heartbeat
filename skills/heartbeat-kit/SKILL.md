@@ -59,7 +59,7 @@ Check, cheaply (read-only):
   read them, never assume them. A source that errors (non-zero exit) outranks everything.
 
 **Durability net (catch-all, read-only):** run the kit's orphan audit over the repo —
-`~/heartbeat-kit/bin/orphan-audit.sh <repo>` (adjust to wherever you cloned the kit; this
+`~/heartbeat/bin/orphan-audit.sh <repo>` (adjust to wherever you cloned the kit; this
 skill file is deployed under `~/.claude/skills/` and cannot reference the script by a
 relative path). It detects durable files a dead session created but never committed
 (work that will be lost
