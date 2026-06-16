@@ -21,7 +21,12 @@ empty ticks treated as good ticks, and durability/liveness so a silent death is 
 | Durability net | `bin/orphan-audit.sh` | Read-only check for untracked durable files a dead session left behind |
 | Liveness watchdog | `.github/workflows/heartbeat-liveness.yml` | Off-machine alert when no tick has been pushed within a threshold |
 | Gate sources example | `examples/sources.md` | Starter template for the one part you configure — what ground truth the gate reads |
-| Design notes | `docs/design.md` | The "why" behind each rule |
+| Board engine | `lib/board.py` + `lib/config.py` | Lock-guarded, file-per-card board read/write with a provenance ratchet (paths/columns in `config.py`) |
+| Injection sanitizer | `lib/injection_sanitize.py` | Layer-1 producer-boundary defang of untrusted text + provenance stamp |
+| Seeded prompt | `lib/seeded_prompt.py` | Layer-2 data-fenced prompt builder for opening a card into a session |
+| Example producer | `lib/example_producer.py` | The sanitize → stamp → upsert-through-the-ratchet pattern, end to end |
+| Tests | `tests/` | Sanitizer bypass vectors, the provenance ratchet, and the seeded-prompt fence |
+| Design notes | `docs/design.md` | The "why" behind each rule — including the three-layer prompt-injection defense |
 
 The skill is named `heartbeat-kit` so it never collides with a project-specific
 `/heartbeat` skill you may already have.
@@ -82,6 +87,11 @@ touch ~/.heartbeat-stop
   approval.
 - **Adversarial review.** Significant work products get a fresh-context refute pass before
   they're queued for the owner.
+- **Prompt-injection defense in depth.** Untrusted text scraped into a card is defanged at
+  the producer boundary (`lib/injection_sanitize.py`), framed as data in the seeded prompt
+  (`lib/seeded_prompt.py`), and stamped so the auto-land gate refuses it
+  (`board.can_auto_land` — AI cannot approve its own work). Three independent layers, each
+  assuming the others may fail. See [`docs/design.md`](docs/design.md) §Prompt-injection defense.
 - **Durability.** A durability net catches uncommitted work; the loop pushes every tick so
   an unpushed tick can't die silently with the machine.
 - **Liveness from the outside.** A GitHub Action reads the pushed tick log and alerts when
