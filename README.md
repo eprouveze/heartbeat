@@ -33,13 +33,25 @@ The skill is named `heartbeat-kit` so it never collides with a project-specific
 
 ## Install
 
+**As a Claude Code plugin** (recommended; the skill loads as `heartbeat-kit:heartbeat-kit`
+and updates with `claude plugin marketplace update`):
+
+```bash
+claude plugin marketplace add eprouveze/heartbeat
+claude plugin install heartbeat-kit@eprouveze-heartbeat
+```
+
+**Or copy the skill by hand** (what `bin/heartbeat-launch.sh` pre-flight-checks):
+
 ```bash
 git clone https://github.com/<you>/heartbeat.git ~/heartbeat
 mkdir -p ~/.claude/skills/heartbeat-kit
 cp ~/heartbeat/skills/heartbeat-kit/SKILL.md ~/.claude/skills/heartbeat-kit/
 ```
 
-(The launcher pre-flight-checks that the skill is deployed and refuses to start otherwise.)
+(The launcher pre-flight-checks that the copied skill is deployed and refuses to start
+otherwise. If you installed the plugin instead, skip the launcher's copy step and ignite
+with `claude "/loop /heartbeat-kit:heartbeat-kit"` after the first-run state setup.)
 
 ## Ignite
 

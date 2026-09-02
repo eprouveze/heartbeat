@@ -1,0 +1,11 @@
+{
+  "name": "heartbeat-kit",
+  "version": "0.1.0",
+  "description": "An autonomous work loop for a Claude Code session: wakes itself, reads a small set of ground-truth sources, advances one item per tick inside a hard envelope, logs every tick, and queues anything irreversible to the human owner. Ships the tick-protocol skill; the board template, launcher, liveness watchdog and injection-hardening library live alongside it in the repo.",
+  "author": { "name": "Emmanuel Prouvèze" },
+  "homepage": "https://github.com/eprouveze/heartbeat",
+  "repository": "https://github.com/eprouveze/heartbeat",
+  "license": "MIT",
+  "keywords": ["autonomous", "loop", "heartbeat", "kanban", "board", "prompt-injection", "agent-native"],
+  "skills": ["./skills"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "eprouveze-heartbeat",
+  "owner": {
+    "name": "Emmanuel Prouvèze",
+    "url": "https://github.com/eprouveze"
+  },
+  "plugins": [
+    {
+      "name": "heartbeat-kit",
+      "source": "./",
+      "description": "Autonomous one-item-per-tick work loop for Claude Code, with a hard envelope, kill switch, board, ledger and liveness."
+    }
+  ]
+}
